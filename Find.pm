@@ -6,10 +6,9 @@ use warnings;
 use Carp;
 use URI;
 use URI::Heuristic;
-use HTTP::Request::Common;
 use HTML::LinkExtor;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 my $depth = 1;
 my %seen;
 
@@ -18,7 +17,7 @@ my $match_sub = sub {
     my($self) = shift;
 
 ## tests for URL's matching this REGEX
-    if($self->{REQUEST}->uri =~ /(gif)$/io) {
+    if($self->{REQUEST}->uri =~ /html?$/io) {
 
 ## do something with matching URL's
 ## print to STDOUT is the default action 
@@ -30,10 +29,12 @@ my $match_sub = sub {
 ## Default URL follow subtroutine
 ## Should return true or false
 my $follow_sub = sub {
-    my($self, $response) = @_;
+    my $self = shift;
+    my $header = HTTP::Request->new(HEAD => $self->{REQUEST}->uri);
+    my $response = $self->{AGENT}->request($header) || next;
     $response->content_type eq 'text/html' && ref($self->{REQUEST}->uri) eq 'URI::http'
-    ? return 1 :  
-      return 0;  
+    ? return 1   
+    : return 0;  
 };
 
 ## Private methods
@@ -47,7 +48,7 @@ $_rec = sub {
      return if($depth > $self->{MAX_DEPTH});
 
 ## Request HTML Document
-    my $html = $self->{AGENT_FOLLOW}->request($self->{REQUEST});
+    my $html = $self->{AGENT}->request($self->{REQUEST});
 
 ## Parse out HREF links
     my $parser = HTML::LinkExtor->new(undef);
@@ -77,14 +78,12 @@ $_rec = sub {
            next if($depth > $self->{MAX_DEPTH});
 
 ## Modify request object for next request
-#           if(ref($self->{REQUEST}->uri) eq 'URI::http') 
            if(ref($self->{REQUEST}->uri)) 
            {
                $self->{REQUEST}->uri(URI::Heuristic::uf_urlstr($self->{REQUEST}->uri));
-               my $response = $self->{AGENT_FOLLOW}->request(HEAD $self->{REQUEST}->uri) || next;
 
 ## User defined follow subroutine
-               &$_rec($self) if ($self->{FOLLOW_SUB}($self, $response));
+               &$_rec($self) if ($self->{FOLLOW_SUB}($self));
            }
        }
    }
@@ -133,65 +132,72 @@ __END__
 
 =head1 NAME
 
-WWW::Find - Recursive Web Resource Locator 
+WWW::Find - Web Resource Finder 
 
 =head1 SYNOPSIS
 
-  use LWP::UserAgent;
-  use HTTP::Request;
-  use WWW::Find;
+use LWP::UserAgent;
+use HTTP::Request;
+use WWW::Find;
 
 $agent = LWP::UserAgent->new;
 
-$request = HTTP::Request->new(GET => 'http://www.bookmarks.example');
+$request = HTTP::Request->new(GET => 'http://begin.url');
 
-$find = WWW::Find->new(AGENT_FOLLOW => $agent,
+$find = WWW::Find->new(AGENT => $agent,
                        REQUEST => $request,
- # optional            MAX_DEPTH => 2,
- # optional            MATCH_SUB => \&match,
- # optional            FOLLOW_SUB => \&follow
+                       MAX_DEPTH => 2,
+                       MATCH_SUB => \match, 
+                       FOLLOW_SUB => \follow 
                       );
 
 $find->go;
 
-# example match subroutine
-# finds pl/pm files and printe the URI
+=head1 DEPENDENCIES
+
+HTML::LinkExtor
+LWP::UserAgent
+HTTP::Request
+URI
+
+=head1 DESCRIPTION
+
+WWW::Find simplifies the task of searching the web for specific types of information.  The inspiration for this project came from the recursive website mirroring program, w3mir.  WWW::Find is similar to w3mir, but with a more general feature set. 
+
+In a nutshell, a WWW::Find object extracts all the HREF links from an HTML document, creates a HTTP::Request object for each link, matches the HTTP::Response object against user specified criteria, and then does something with the matching links (possibly performing the entire operation all over again on certain links).  Be careful not to set the MAX_DEPTH parameter too high, otherwise you could easily begin the endless task of requesting every page on the net!         
+
+In addition to a LPW::UserAgent and a HTTP::Request object, you'll need to create two subroutines: a &match subroutine and a &follow subroutine.  
+
+The &follow subroutine should attempt to match the HTTP::Response object against user defined criteria.  If a match is found, the entire operation is performed all over again on the matching link.  For example, the following subroutine matches links where the header content-type matches the regular expression /text/.  
+
+sub follow {
+    my $find_obj = shift;
+    my $header = HTTP::Request->new(HEAD => $find_obj->{REQUEST}->uri);
+    my $response = $find_obj->{AGENT}->request($header) || next;
+    $response->content_type =~ /text/io
+    ? return 1 
+    : return 0;
+}
+
+The &match subroutine should perform some operation on links matching user defined criteria.  For example, the following subroutine simply prints out the URL of all links matching the regular expression /html?$/ 
 
 sub match {
-    my $self = shift;
-    if($self->{REQUEST}->uri =~ /(pl|pm)$/io) {
-        print $self->{REQUEST}->uri . "\n";
+    my $find_obj = shift;
+    if($find_obj->{REQUEST}->uri =~ /html?$/io) {
+        print $find_obj->{REQUEST}->uri . "\n";
     }
     return;
 }
 
-# example follow subroutine 
-# follows links with header content_type eq 'text/*' 
-
-sub follow {
-    my($self, $response) = @_;
-    $response->content_type =~ /text/io  
-    ? return 1 :  
-      return 0;   
-}
-
-=head1 DESCRIPTION
-
-Think of WWW::Find as a web version the Unix 'find' command.  
-One can imagine various uses for it.  
-For example, it might be used to recursively mirror multi-page web sites on your local hard disk.  
-Or perhaps you might want to search the web for resources matching certain HTTP header criteria; whatever you like.  
-I've opted for maximum flexibility by allowing the user to pass in custom URL and header matching subroutines.  
-Flexibility is both good and bad; care is required.  
-Given bad parameters, you could easily begin the infinite task of downloading everything on the net! 
-
 =head1 SEE ALSO
 
-http://www.gnusto.net is the offical home page of WWW::Find
+HTTP::Request
+LPW::UserAgent
 
 =head1 AUTHOR
 
-Nathaniel Graham, E<lt>nate@gnusto.net<gt>
+Nathaniel Graham, E<lt>broom@cpan.org<gt>
+http://www.gnusto.net is the offical home page of WWW::Find
 
 =head1 COPYRIGHT AND LICENSE
 
