@@ -9,7 +9,7 @@ use URI::Heuristic;
 use HTTP::Request::Common;
 use HTML::LinkExtor;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 my $depth = 1;
 my %seen;
 
@@ -151,6 +151,8 @@ $find = WWW::Find->new(AGENT_FOLLOW => $agent,
     # optional         MATCH_SUB => \&$match_sub,
     # optional         FOLLOW_SUB => \&$follow_sub
                       );
+
+$find->go;
 
  ## example $match_sub finds *pl/*pm files and prints the complete URI
 $match_sub = sub {

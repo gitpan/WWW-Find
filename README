@@ -16,7 +16,9 @@ SYNOPSIS
            # optional         MATCH_SUB => \&$match_sub,
            # optional         FOLLOW_SUB => \&$follow_sub
                              );
-                                                                                          
+
+       $find->go;
+
         ## example $match_sub finds *pl/*pm files and prints the complete URI
        $match_sub = sub {
            my $self = shift;
