@@ -8,12 +8,12 @@ use URI;
 use URI::Heuristic;
 use HTML::LinkExtor;
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 my $depth = 1;
 my %seen;
 
 # Default URL matching subroutine 
-my $match_sub = sub {
+sub match_sub {
     my($self) = shift;
 
 ## tests for URL's matching this REGEX
@@ -23,38 +23,38 @@ my $match_sub = sub {
 ## print to STDOUT is the default action 
         print $self->{REQUEST}->uri . "\n";
     }
-    return;
-};
+    return
+}
 
 ## Default URL follow subtroutine
 ## Should return true or false
-my $follow_sub = sub {
+sub follow_sub {
     my $self = shift;
     my $header = HTTP::Request->new(HEAD => $self->{REQUEST}->uri);
     my $response = $self->{AGENT}->request($header) || next;
     $response->content_type eq 'text/html' && ref($self->{REQUEST}->uri) eq 'URI::http'
     ? return 1   
-    : return 0;  
-};
+    : return 0  
+}
 
 ## Private methods
 
 my $_rec;
 $_rec = sub {
-     my $self = shift;
-     my $uri = URI->new($self->{REQUEST}->uri);
-     return if $seen{$uri};
-     $seen{$uri}++;
-     return if($depth > $self->{MAX_DEPTH});
+    my $find_obj = shift;
+    my $uri = URI->new($find_obj->{REQUEST}->uri);
+    return if $seen{$uri};
+    $seen{$uri}++;
+    return if($depth > $find_obj->{MAX_DEPTH});
+    $depth++;
 
 ## Request HTML Document
-    my $html = $self->{AGENT}->request($self->{REQUEST});
+    my $html = $find_obj->{AGENT}->request($find_obj->{REQUEST});
 
 ## Parse out HREF links
     my $parser = HTML::LinkExtor->new(undef);
     $parser->parse($html->content);
     my @links = $parser->links;
-    $depth++;
     foreach my $ln (@links)
     {
        my @element = @$ln;
@@ -64,26 +64,25 @@ $_rec = sub {
            my ($name, $value) = splice(@element, 0, 2);
 
 ## Make URL absolute
-           $self->{REQUEST}->uri(URI::Heuristic::uf_urlstr($uri->host)) || next;
-           $self->{REQUEST}->uri(URI->new_abs($value, $self->{REQUEST}->uri)) || next;
-           my $url = $self->{REQUEST}->uri;
+           $find_obj->{REQUEST}->uri(URI->new_abs($value, $uri));
+           my $url = $find_obj->{REQUEST}->uri;
 
 ## Skip if duplicate  
            next if $seen{$url};
 
 ## User defined matching subroutine
-           $self->{MATCH_SUB}($self);
+           $find_obj->{MATCH_SUB}($find_obj);
 
 ## Check recursion depth
-           next if($depth > $self->{MAX_DEPTH});
+           next if($depth > $find_obj->{MAX_DEPTH});
 
 ## Modify request object for next request
-           if(ref($self->{REQUEST}->uri)) 
+           if(ref($find_obj->{REQUEST}->uri)) 
            {
-               $self->{REQUEST}->uri(URI::Heuristic::uf_urlstr($self->{REQUEST}->uri));
+               $find_obj->{REQUEST}->uri(URI::Heuristic::uf_urlstr($find_obj->{REQUEST}->uri));
 
 ## User defined follow subroutine
-               &$_rec($self) if ($self->{FOLLOW_SUB}($self));
+               &$_rec($find_obj) if ($find_obj->{FOLLOW_SUB}($find_obj));
            }
        }
    }
@@ -98,8 +97,8 @@ sub new
     croak 'Expecting a class' if ref $class;
     my $self = { MAX_DEPTH => 2,
                  DIRECTORY => '.',
-                 MATCH_SUB => \&$match_sub,
-                 FOLLOW_SUB => \&$follow_sub
+                 MATCH_SUB => \&match_sub,
+                 FOLLOW_SUB => \&follow_sub
     };
 ## Parms should be validated, but I'm feeling lazy 
     while(my($k, $v) = each(%parm)) { $self->{$k} = $v};
@@ -147,8 +146,8 @@ $request = HTTP::Request->new(GET => 'http://begin.url');
 $find = WWW::Find->new(AGENT => $agent,
                        REQUEST => $request,
                        MAX_DEPTH => 2,
-                       MATCH_SUB => \match, 
-                       FOLLOW_SUB => \follow 
+                       MATCH_SUB => \&match, 
+                       FOLLOW_SUB => \&follow 
                       );
 
 $find->go;

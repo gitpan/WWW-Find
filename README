@@ -13,8 +13,8 @@ SYNOPSIS
        $find = WWW::Find->new(AGENT => $agent,
                               REQUEST => $request,
                               MAX_DEPTH => 2,
-                              MATCH_SUB => \match,
-                              FOLLOW_SUB => \follow
+                              MATCH_SUB => \&match,
+                              FOLLOW_SUB => \&follow
                              );
 
        $find->go;
