@@ -9,7 +9,7 @@ use URI::Heuristic;
 use HTTP::Request::Common;
 use HTML::LinkExtor;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 my $depth = 1;
 my %seen;
 
