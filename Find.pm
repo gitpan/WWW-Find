@@ -9,7 +9,7 @@ use URI::Heuristic;
 use HTTP::Request::Common;
 use HTML::LinkExtor;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 my $depth = 1;
 my %seen;
 
@@ -22,7 +22,7 @@ my $match_sub = sub {
 
 ## do something with matching URL's
 ## print to STDOUT is the default action 
-        print "$self->{REQUEST}->uri\n";
+        print $self->{REQUEST}->uri . "\n";
     }
     return;
 };
@@ -32,8 +32,8 @@ my $match_sub = sub {
 my $follow_sub = sub {
     my($self, $response) = @_;
     $response->content_type eq 'text/html' && ref($self->{REQUEST}->uri) eq 'URI::http'
-    ? return 1 :  # true
-      return 0;   # not true
+    ? return 1 :  
+      return 0;  
 };
 
 ## Private methods
@@ -147,36 +147,40 @@ $request = HTTP::Request->new(GET => 'http://www.bookmarks.example');
 
 $find = WWW::Find->new(AGENT_FOLLOW => $agent,
                        REQUEST => $request,
-    # optional         MAX_DEPTH => 2,
-    # optional         MATCH_SUB => \&$match_sub,
-    # optional         FOLLOW_SUB => \&$follow_sub
+ # optional            MAX_DEPTH => 2,
+ # optional            MATCH_SUB => \&match,
+ # optional            FOLLOW_SUB => \&follow
                       );
 
 $find->go;
 
- ## example $match_sub finds *pl/*pm files and prints the complete URI
-$match_sub = sub {
+# example match subroutine
+# finds pl/pm files and printe the URI
+
+sub match {
     my $self = shift;
     if($self->{REQUEST}->uri =~ /(pl|pm)$/io) {
         print $self->{REQUEST}->uri . "\n";
     }
     return;
-};
+}
 
- ## example $follow_sub follows links with header content_type eq 'text/*' 
-$follow_sub = sub {
+# example follow subroutine 
+# follows links with header content_type eq 'text/*' 
+
+sub follow {
     my($self, $response) = @_;
     $response->content_type =~ /text/io  
     ? return 1 :  
       return 0;   
-};
+}
 
 =head1 DESCRIPTION
 
 Think of WWW::Find as a web version the Unix 'find' command.  
 One can imagine various uses for it.  
 For example, it might be used to recursively mirror multi-page web sites on your local hard disk.  
-Or perhaps you might want to scour the web for resources matching certain HTTP header criteria; whatever you like.  
+Or perhaps you might want to search the web for resources matching certain HTTP header criteria; whatever you like.  
 I've opted for maximum flexibility by allowing the user to pass in custom URL and header matching subroutines.  
 Flexibility is both good and bad; care is required.  
 Given bad parameters, you could easily begin the infinite task of downloading everything on the net! 

@@ -1,47 +1,42 @@
-WWW/Find version 0.01
+WWW/Find version 0.04
 =====================
 
 SYNOPSIS
-         use LWP::UserAgent;
-         use HTTP::Request;
-         use WWW::Find;
-                                                                                          
-       $agent = LWP::UserAgent->new;
-                                                                                          
-       $request = HTTP::Request->new(GET => 'http://www.bookmarks.example');
-                                                                                          
-       $find = WWW::Find->new(AGENT_FOLLOW => $agent,
-                              REQUEST => $request,
-           # optional         MAX_DEPTH => 2,
-           # optional         MATCH_SUB => \&$match_sub,
-           # optional         FOLLOW_SUB => \&$follow_sub
-                             );
+    use LWP::UserAgent;
+    use HTTP::Request;
+    use WWW::Find;
 
-       $find->go;
+    $agent = LWP::UserAgent->new;
 
-        ## example $match_sub finds *pl/*pm files and prints the complete URI
-       $match_sub = sub {
-           my $self = shift;
-           if($self->{REQUEST}->uri =~ /(pl|pm)$/io) {
-               print $self->{REQUEST}->uri . "\n";
-           }
-                                                                                          
-        ## example $match_sub finds *pl/*pm files and prints the complete URI
-       $match_sub = sub {
-           my $self = shift;
-           if($self->{REQUEST}->uri =~ /(pl|pm)$/io) {
-               print $self->{REQUEST}->uri . "\n";
-           }
-           return;
-       };
-                                                                                          
-        ## example $follow_sub follows links with header content_type eq 'text/*'
-       $follow_sub = sub {
-           my($self, $response) = @_;
-           $response->content_type =~ /text/io
-           ? return 1 :
-             return 0;
-       };
+    $request = HTTP::Request->new(GET => 'http://www.bookmarks.example');
+
+    $find = WWW::Find->new(AGENT_FOLLOW => $agent,
+                           REQUEST => $request,
+    # optional             MAX_DEPTH => 2,
+    # optional             MATCH_SUB => \&match,
+    # optional             FOLLOW_SUB => \&follow
+                          );
+
+    $find->go;
+
+    ## example match subroutine
+    ## finds pl/pm files and prints the URI
+    sub match {
+        my $self = shift;
+        if($self->{REQUEST}->uri =~ /(pl|pm)$/io) {
+            print $self->{REQUEST}->uri . "\n";
+        }
+        return;
+    }
+
+    ## example follow subroutine
+    ## follows links with header content_type eq 'text/*'
+    sub follow {
+        my($self, $response) = @_;
+        $response->content_type =~ /text/io
+        ? return 1 :
+          return 0;
+    }
 
 DESCRIPTION
        Think of WWW::Find as a web version the Unix 'find' command.  One can
