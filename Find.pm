@@ -8,8 +8,8 @@ use URI;
 use URI::Heuristic;
 use HTML::LinkExtor;
 
-our $VERSION = '0.06';
-my $depth = 1;
+our $VERSION = '0.07';
+my $depth = 0;
 my %seen;
 
 # Default URL matching subroutine 
@@ -43,8 +43,8 @@ my $_rec;
 $_rec = sub {
     my $find_obj = shift;
     my $uri = URI->new($find_obj->{REQUEST}->uri);
-    return if $seen{$uri};
-    $seen{$uri}++;
+#    $seen{$uri}++;
+#    return if($seen{$uri} > 1);
     return if($depth > $find_obj->{MAX_DEPTH});
     $depth++;
 
@@ -59,6 +59,7 @@ $_rec = sub {
     {
        my @element = @$ln;
        my $type = shift @element;
+       next unless($type =~ /^a/io);
        while(@element)
        {
            my ($name, $value) = splice(@element, 0, 2);
@@ -67,14 +68,17 @@ $_rec = sub {
            $find_obj->{REQUEST}->uri(URI->new_abs($value, $uri));
            my $url = $find_obj->{REQUEST}->uri;
 
-## Skip if duplicate  
-           next if $seen{$url};
+## Check recursion depth
+           next if($depth > $find_obj->{MAX_DEPTH});
 
+## Skip if duplicate  
+	   $seen{$url}++;
+	   next if($seen{$url} > 1);
 ## User defined matching subroutine
            $find_obj->{MATCH_SUB}($find_obj);
 
 ## Check recursion depth
-           next if($depth > $find_obj->{MAX_DEPTH});
+#           next if($depth > $find_obj->{MAX_DEPTH});
 
 ## Modify request object for next request
            if(ref($find_obj->{REQUEST}->uri)) 
